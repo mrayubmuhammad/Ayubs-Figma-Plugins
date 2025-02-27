@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 20px;
+    }
+    h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    .description {
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #333;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .range-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    input[type="range"] {
+      flex-grow: 1;
+    }
+    .value-display {
+      width: 40px;
+      text-align: right;
+      font-size: 12px;
+    }
+    .button-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+    }
+    button {
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      flex-grow: 1;
+      border: none;
+    }
+    #convert {
+      background-color: #0D99FF;
+      color: white;
+    }
+    #cancel {
+      background-color: #F0F0F0;
+      color: #333;
+    }
+    .example {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 6px;
+      background-color: #F5F5F5;
+      font-size: 14px;
+    }
+    .example strong {
+      font-weight: 700;
+    }
+    .weight-display {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Convert to Bionic Writing</h2>
+  
+  <div class="description">
+    Bionic writing applies bold formatting to the beginning of each word to improve reading speed and comprehension. If it doesnt work try setting all the weights in the text to Regular/Normal for better performance. The plugin automatically adapts to available font weights.
+  </div>
+  
+  <div class="input-group">
+    <label for="fixation">Fixation Strength</label>
+    <div class="range-container">
+      <input id="fixation" type="range" min="20" max="70" value="40">
+      <span id="fixationValue" class="value-display">40%</span>
+    </div>
+  </div>
+  
+  <div class="input-group">
+    <label for="contrast">Contrast</label>
+    <div class="range-container">
+      <input id="contrast" type="range" min="100" max="900" step="300" value="600">
+      <span id="contrastValue" class="value-display">600</span>
+    </div>
+  </div>
+  
+  <div class="weight-display" id="weights-info">
+    <!-- Font weight info will be displayed here -->
+  </div>
+  
+  <div class="example">
+    Example: <strong>Bi</strong>onic <strong>wri</strong>ting <strong>hel</strong>ps <strong>rea</strong>ders <strong>fo</strong>cus <strong>bet</strong>ter
+  </div>
+  
+  <div class="button-row">
+    <button id="convert">Convert</button>
+    <button id="cancel">Cancel</button>
+  </div>
+
+<script>
+  // DOM Elements
+  const fixationSlider = document.getElementById('fixation');
+  const fixationValue = document.getElementById('fixationValue');
+  const contrastSlider = document.getElementById('contrast');
+  const contrastValue = document.getElementById('contrastValue');
+  const convertButton = document.getElementById('convert');
+  const cancelButton = document.getElementById('cancel');
+  const weightsInfo = document.getElementById('weights-info');
+  
+  // Update display values when sliders change
+  fixationSlider.addEventListener('input', function() {
+    fixationValue.textContent = fixationSlider.value + '%';
+    updateExample();
+  });
+  
+  contrastSlider.addEventListener('input', function() {
+    contrastValue.textContent = contrastSlider.value;
+    updateExample();
+  });
+  
+  // Function to update the example text based on current settings
+  function updateExample() {
+    const example = document.querySelector('.example');
+    const fixation = parseInt(fixationSlider.value);
+    const contrast = parseInt(contrastSlider.value);
+    
+    // Get the example text and split into words
+    const text = "Bionic writing helps readers focus better";
+    const words = text.split(' ');
+    
+    let htmlContent = "";
+    
+    // Apply bionic formatting to each word
+    for (const word of words) {
+      const boldChars = Math.max(1, Math.ceil(word.length * fixation / 100));
+      const boldPart = word.substring(0, boldChars);
+      const normalPart = word.substring(boldChars);
+      
+      // Adjust the font-weight based on contrast
+      const boldWeight = Math.min(900, 400 + contrast);
+      
+      htmlContent += `<span><strong style="font-weight: ${boldWeight}">${boldPart}</strong>${normalPart} </span>`;
+    }
+    
+    example.innerHTML = "Example: " + htmlContent.trim();
+  }
+  
+  // Listen for messages from the plugin
+  window.onmessage = (event) => {
+    const message = event.data.pluginMessage;
+    
+    if (!message) return;
+    
+    if (message.type === 'contrast-options') {
+      updateContrastSlider(message.contrastSteps, message.maxWeights);
+    }
+  };
+  
+  // Update the contrast slider based on available weights
+  function updateContrastSlider(contrastSteps, maxWeights) {
+    if (contrastSteps && contrastSteps.length > 0) {
+      console.log("Updating slider with contrast steps:", contrastSteps);
+      
+      // Update the slider min, max and step
+      contrastSlider.min = contrastSteps[0].toString();
+      contrastSlider.max = contrastSteps[contrastSteps.length - 1].toString();
+      
+      // If there are more than 3 steps, adjust the step size
+      if (contrastSteps.length > 3) {
+        // Calculate step size based on range and number of steps
+        const step = Math.floor((contrastSteps[contrastSteps.length - 1] - contrastSteps[0]) / (contrastSteps.length - 1));
+        contrastSlider.step = step.toString();
+      } else {
+        contrastSlider.step = "300"; // Default step
+      }
+      
+      // Set a middle value by default
+      const middleIndex = Math.floor(contrastSteps.length / 2);
+      contrastSlider.value = contrastSteps[middleIndex].toString();
+      contrastValue.textContent = contrastSlider.value;
+      
+      // Update description based on available weights
+      const description = document.querySelector('.description');
+      if (maxWeights > 3) {
+        description.innerHTML = `Bionic writing applies bold formatting to the beginning of each word to improve reading speed. <Strong> If it doesnt work try setting all the weights in the text to Regular/Normal for better performance. Also Restart for different font family text frame. Source Code: <Strong>. <strong>Your text has fonts with ${maxWeights} weights available, allowing fine-grained contrast control.</strong>`;
+        weightsInfo.textContent = `${maxWeights} font weights detected, enabling precise bionic formatting.`;
+      } else if (maxWeights === 2) {
+        description.innerHTML = `Bionic writing applies bold formatting to the beginning of each word. <strong>Your selected text has only 2 font weights available, so contrast options are limited.</strong>`;
+        weightsInfo.textContent = `Only 2 font weights available. Limited contrast control.`;
+      }
+    }
+    
+    // Update the example with new settings
+    updateExample();
+  }
+  
+  // Convert button click handler
+  convertButton.onclick = () => {
+    const fixation = parseInt(fixationSlider.value);
+    const contrast = parseInt(contrastSlider.value);
+    
+    parent.postMessage({ 
+      pluginMessage: { 
+        type: 'convert-to-bionic', 
+        fixationStrength: fixation,
+        contrast: contrast
+      } 
+    }, '*');
+  };
+
+  // Cancel button click handler
+  cancelButton.onclick = () => {
+    parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+  };
+  
+  // Initialize example on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Set initial values
+    fixationValue.textContent = fixationSlider.value + '%';
+    contrastValue.textContent = contrastSlider.value;
+    
+    // Update example on initial load
+    updateExample();
+  });
+</script>
+</body>
+</html>
